@@ -1,0 +1,90 @@
+# Source: https://docs.crewai.com/en/mcp/multiple-servers
+
+MCP Integration
+
+# Connecting to Multiple MCP Servers
+
+
+Learn how to use MCPServerAdapter in CrewAI to connect to multiple MCP servers simultaneously and aggregate their tools.
+
+
+## 
+
+​
+
+Overview
+
+`MCPServerAdapter` in `crewai-tools` allows you to connect to multiple MCP servers concurrently. This is useful when your agents need to access tools distributed across different services or environments. The adapter aggregates tools from all specified servers, making them available to your CrewAI agents.
+
+## 
+
+​
+
+Configuration
+
+To connect to multiple servers, you provide a list of server parameter dictionaries to `MCPServerAdapter`. Each dictionary in the list should define the parameters for one MCP server. Supported transport types for each server in the list include `stdio`, `sse`, and `streamable-http`.
+    
+    
+    from crewai import Agent, Task, Crew, Process
+    from crewai_tools import MCPServerAdapter
+    from mcp import StdioServerParameters # Needed for Stdio example
+    
+    # Define parameters for multiple MCP servers
+    server_params_list = [
+        # Streamable HTTP Server
+        {
+            "url": "http://localhost:8001/mcp", 
+            "transport": "streamable-http"
+        },
+        # SSE Server
+        {
+            "url": "http://localhost:8000/sse",
+            "transport": "sse"
+        },
+        # StdIO Server
+        StdioServerParameters(
+            command="python3",
+            args=["servers/your_stdio_server.py"],
+            env={"UV_PYTHON": "3.12", **os.environ},
+        )
+    ]
+    
+    try:
+        with MCPServerAdapter(server_params_list) as aggregated_tools:
+            print(f"Available aggregated tools: {[tool.name for tool in aggregated_tools]}")
+    
+            multi_server_agent = Agent(
+                role="Versatile Assistant",
+                goal="Utilize tools from local Stdio, remote SSE, and remote HTTP MCP servers.",
+                backstory="An AI agent capable of leveraging a diverse set of tools from multiple sources.",
+                tools=aggregated_tools, # All tools are available here
+                verbose=True,
+            )
+    
+            ... # Your other agent, tasks, and crew code here
+    
+    except Exception as e:
+        print(f"Error connecting to or using multiple MCP servers (Managed): {e}")
+        print("Ensure all MCP servers are running and accessible with correct configurations.")
+    
+    
+
+## 
+
+​
+
+Connection Management
+
+When using the context manager (`with` statement), `MCPServerAdapter` handles the lifecycle (start and stop) of all connections to the configured MCP servers. This simplifies resource management and ensures that all connections are properly closed when the context is exited.
+
+Was this page helpful?
+
+YesNo
+
+[Streamable HTTP TransportPrevious](/en/mcp/streamable-http)[MCP Security ConsiderationsNext](/en/mcp/security)
+
+⌘I
+
+[website](https://crewai.com)[x](https://x.com/crewAIInc)[github](https://github.com/crewAIInc/crewAI)[linkedin](https://www.linkedin.com/company/crewai-inc)[youtube](https://youtube.com/@crewAIInc)[reddit](https://www.reddit.com/r/crewAIInc)
+
+[Powered byThis documentation is built and hosted on Mintlify, a developer documentation platform](https://www.mintlify.com?utm_campaign=poweredBy&utm_medium=referral&utm_source=crewai)

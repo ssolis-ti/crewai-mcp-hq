@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  crewai-mcp:
+    build: .
+    ports:
+      - "8808:8808"
+    volumes:
+      # Mount scraped documentation
+      - ./docs:/app/docs
+      # Mount workspace to persist CrewAI projects
+      - ./workspace:/app/workspace
+      # Persist ChromaDB knowledge base
+      - ./knowledge_db:/app/knowledge_db
+      # Optionally mount .env file
+      - ./.env:/app/.env:ro
+    environment:
+      - CREWAI_MCP_TRANSPORT=sse
+      - CREWAI_MCP_HOST=0.0.0.0
+      - CREWAI_MCP_PORT=8808
+      # LLM keys needed if running tools directly
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}

@@ -40,7 +40,7 @@ def crewai_test_crew(
         return f"Error: Project '{project_name}' not found."
 
     try:
-        cmd = ["crewai", "test", "-n", str(iterations), "-m", model]
+        cmd = ["uv", "run", "crewai", "test", "-n", str(iterations), "-m", model]
         logger.info(f"Running: {' '.join(cmd)} in {project_path}")
 
         result = subprocess.run(
@@ -76,7 +76,7 @@ def crewai_train_crew(
         return f"Error: Project '{project_name}' not found."
 
     try:
-        cmd = ["crewai", "train", "-n", str(iterations), "-f", filename]
+        cmd = ["uv", "run", "crewai", "train", "-n", str(iterations), "-f", filename]
         logger.info(f"Running: {' '.join(cmd)} in {project_path}")
 
         result = subprocess.run(
@@ -111,7 +111,7 @@ def crewai_replay_task(
         return f"Error: Project '{project_name}' not found."
 
     try:
-        cmd = ["crewai", "replay", "-t", task_id]
+        cmd = ["uv", "run", "crewai", "replay", "-t", task_id]
         logger.info(f"Running: {' '.join(cmd)} in {project_path}")
 
         result = subprocess.run(

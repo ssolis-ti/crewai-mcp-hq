@@ -46,6 +46,10 @@ def crewai_create_project(
         default="crew",
         description="Type of project to create ('crew' or 'flow')",
     ),
+    provider: str = Field(
+        default="openai",
+        description="LLM provider to use (e.g., 'openai', 'anthropic', 'gemini', 'ollama'). Note: This sets up the provider non-interactively via --skip_provider; you'll need to configure API keys in the project's .env file after creation.",
+    ),
 ) -> str:
     """
     Create a new CrewAI project using the official CLI.
@@ -53,6 +57,9 @@ def crewai_create_project(
     This generates the standard scaffolding for a CrewAI project,
     including pyproject.toml, src directory, yaml configs, and entry points.
     The project is created inside the configured CrewAI workspace.
+    
+    Note: The --skip_provider flag is used to avoid interactive prompts.
+    You will need to manually configure the provider API keys in the project's .env file.
     """
     workspace = _get_workspace()
     project_path = workspace / name
@@ -61,8 +68,10 @@ def crewai_create_project(
         return f"Error: Project '{name}' already exists at {project_path}"
 
     try:
-        # Use standard subprocess. Run non-interactively using --skip_provider
-        cmd = ["crewai", "create", project_type, name, "--skip_provider"]
+        # Use --skip_provider to avoid interactive prompts
+        # The provider parameter is documented for reference but not passed to CLI
+        # since --provider still triggers interactive model/API key selection
+        cmd = ["uv", "run", "crewai", "create", project_type, name, "--skip_provider"]
         logger.info(f"Running: {' '.join(cmd)} in {workspace}")
 
         result = subprocess.run(
@@ -71,19 +80,41 @@ def crewai_create_project(
             capture_output=True,
             text=True,
             check=False,
+            timeout=120,
+            stdin=subprocess.DEVNULL,
         )
 
         if result.returncode != 0:
             return f"Failed to create project.\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+
+        # Create a basic .env file with the provider configuration
+        env_file = project_path / ".env"
+        env_content = f"# CrewAI Project Configuration\n# Provider: {provider}\n# Add your API keys below:\n"
+        if provider == "openai":
+            env_content += "OPENAI_API_KEY=your-api-key-here\nOPENAI_MODEL_NAME=gpt-4o\n"
+        elif provider == "anthropic":
+            env_content += "ANTHROPIC_API_KEY=your-api-key-here\nANTHROPIC_MODEL_NAME=claude-3-5-sonnet-20241022\n"
+        elif provider == "gemini":
+            env_content += "GEMINI_API_KEY=your-api-key-here\nGEMINI_MODEL_NAME=gemini-1.5-pro\n"
+        elif provider == "ollama":
+            env_content += "OLLAMA_BASE_URL=http://localhost:11434\nOLLAMA_MODEL_NAME=llama3.1\n"
+        
+        try:
+            env_file.write_text(env_content, encoding="utf-8")
+        except Exception:
+            pass  # Non-critical if .env creation fails
 
         return (
             f"Successfully created CrewAI {project_type} '{name}' at {project_path}\n"
             f"Next steps:\n"
             f"1. Update src/{name}/config/agents.yaml and tasks.yaml\n"
             f"2. Add custom tools in src/{name}/tools/\n"
-            f"3. Run crewai_install_deps tool to set up the environment."
+            f"3. Configure API keys in the project's .env file\n"
+            f"4. Run crewai_install_deps tool to set up the environment."
         )
 
+    except subprocess.TimeoutExpired:
+        return f"Error: Project creation timed out after 120 seconds."
     except Exception as e:
         logger.exception("Error creating project")
         return f"Error executing crewai cli: {str(e)}"
@@ -112,7 +143,7 @@ def crewai_install_deps(
 
     try:
         # 1. Run crewai install
-        cmd = ["crewai", "install"]
+        cmd = ["uv", "run", "crewai", "install"]
         logger.info(f"Running: {' '.join(cmd)} in {project_path}")
         result = subprocess.run(
             cmd,

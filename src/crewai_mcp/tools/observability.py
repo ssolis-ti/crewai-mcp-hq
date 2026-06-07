@@ -49,6 +49,7 @@ def crewai_test_crew(
             capture_output=True,
             text=True,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
 
         output = f"Exit code: {result.returncode}\n\nSTDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
@@ -85,6 +86,7 @@ def crewai_train_crew(
             capture_output=True,
             text=True,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
 
         output = f"Exit code: {result.returncode}\n\nSTDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
@@ -120,6 +122,7 @@ def crewai_replay_task(
             capture_output=True,
             text=True,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
 
         output = f"Exit code: {result.returncode}\n\nSTDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"

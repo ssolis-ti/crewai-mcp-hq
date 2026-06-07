@@ -151,6 +151,7 @@ def crewai_install_deps(
             capture_output=True,
             text=True,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
         output.append(f"crewai install:\n{result.stdout}\n{result.stderr}")
 
@@ -168,6 +169,7 @@ def crewai_install_deps(
                 capture_output=True,
                 text=True,
                 check=False,
+                stdin=subprocess.DEVNULL,
             )
             output.append(f"installing extras:\n{res2.stdout}\n{res2.stderr}")
 

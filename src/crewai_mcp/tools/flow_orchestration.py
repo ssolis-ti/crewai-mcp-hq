@@ -48,6 +48,7 @@ def crewai_flow_plot(
             capture_output=True,
             text=True,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
 
         if result.returncode == 0:
@@ -66,11 +67,13 @@ def crewai_flow_plot(
 @mcp.tool()
 def crewai_flow_run(
     project_name: str = Field(..., description="Project name"),
+    inputs: dict = Field(default_factory=dict, description="Optional inputs for the flow"),
 ) -> str:
     """
-    Execute a Flow project.
+    Execute a Flow project using the Python API.
 
-    Runs `crewai run` for a flow project (which resolves to the Flow's kickoff).
+    This runs the flow directly using the Python API (flow.kickoff(inputs=...))
+    instead of the CLI, ensuring proper tool execution and avoiding interactive prompts.
     """
     project_path = _get_project_path(project_name)
 
@@ -78,23 +81,52 @@ def crewai_flow_run(
         return f"Error: Project '{project_name}' not found."
 
     try:
-        cmd = ["crewai", "run"]
-        logger.info(f"Running: {' '.join(cmd)} in {project_path}")
+        # Add project src to Python path
+        import sys
+        src_path = project_path / "src"
+        if str(src_path) not in sys.path:
+            sys.path.insert(0, str(src_path))
 
-        result = subprocess.run(
-            cmd,
-            cwd=project_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        # Import the flow module dynamically
+        project_module_name = project_name.replace("-", "_")
+        
+        try:
+            module = __import__(f"{project_module_name}.flow", fromlist=[""])
+        except ImportError as e:
+            return f"Error importing flow module: {e}. Make sure the project structure is correct."
 
-        output = f"Exit code: {result.returncode}\n\nSTDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+        # Find the flow class
+        flow_class = None
+        excluded_names = {"Flow", "Crew", "Agent", "Task", "Process", "CrewBase", "BaseAgent"}
+        for attr_name in dir(module):
+            attr = getattr(module, attr_name)
+            if isinstance(attr, type) and attr_name not in excluded_names:
+                if attr_name.endswith("Flow") or hasattr(attr, "kickoff"):
+                    flow_class = attr
+                    break
+        
+        if flow_class is None:
+            return f"Error: Could not find a Flow class in {project_module_name}.flow"
 
-        if result.returncode == 0:
-            return f"Flow execution successful.\n\n{output}"
+        # Instantiate and run the flow
+        flow_instance = flow_class()
+        
+        # Load configurations if available (for CrewBase-style flows)
+        if hasattr(flow_instance, "load_configurations"):
+            flow_instance.load_configurations()
+        
+        logger.info(f"Running flow '{project_name}' with inputs: {inputs}")
+        
+        # Try to get the flow object and kickoff
+        if hasattr(flow_instance, "flow"):
+            flow = flow_instance.flow()
+            result = flow.kickoff(inputs=inputs)
+        elif hasattr(flow_instance, "kickoff"):
+            result = flow_instance.kickoff(inputs=inputs)
         else:
-            return f"Flow execution failed.\n\n{output}"
+            return f"Error: Flow class does not have 'kickoff' or 'flow' method"
+        
+        return f"Flow execution successful.\n\nResult: {result}"
 
     except Exception as e:
         logger.exception("Error running flow")

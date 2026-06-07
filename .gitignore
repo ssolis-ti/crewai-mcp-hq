@@ -24,3 +24,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# LiteLLM connection file
+Conexion_LiteLLM_*.md

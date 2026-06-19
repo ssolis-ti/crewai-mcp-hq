@@ -12,6 +12,8 @@ def get_project_path(project_name: str) -> Path:
 
     Sanitizes the project name to prevent directory traversal and
     resolves it against the configured workspace directory.
+    Tries the original name first, then the underscore-normalized version
+    (CrewAI CLI converts hyphens to underscores).
 
     Args:
         project_name: Name of the project directory.
@@ -20,7 +22,16 @@ def get_project_path(project_name: str) -> Path:
         Absolute Path to the project root.
     """
     safe_name = Path(project_name).name
-    return config.paths.workspace / safe_name
+    path = config.paths.workspace / safe_name
+    if path.exists():
+        return path
+    # CrewAI CLI normalizes hyphens → underscores
+    normalized = safe_name.replace("-", "_")
+    if normalized != safe_name:
+        alt_path = config.paths.workspace / normalized
+        if alt_path.exists():
+            return alt_path
+    return path
 
 
 def run_crewai_command(*args: str, cwd: Path, timeout: int = 300) -> tuple[int, str, str]:

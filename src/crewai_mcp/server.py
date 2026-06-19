@@ -24,11 +24,13 @@ def _register_all():
     logger.info("Registering MCP Resources and Tools...")
     import crewai_mcp.resources.documentation  # noqa
     import crewai_mcp.resources.templates  # noqa
+    import crewai_mcp.resources.crew_templates  # noqa
     import crewai_mcp.tools.agent_lifecycle  # noqa
     import crewai_mcp.tools.flow_orchestration  # noqa
     import crewai_mcp.tools.knowledge_memory  # noqa
     import crewai_mcp.tools.observability  # noqa
     import crewai_mcp.tools.project_management  # noqa
+    import crewai_mcp.tools.crew_templates  # noqa
     import crewai_mcp.prompts.workflows  # noqa
     logger.info("All resources, tools, and prompts registered.")
 

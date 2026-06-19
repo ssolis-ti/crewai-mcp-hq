@@ -15,10 +15,9 @@ from pydantic import Field
 
 from crewai_mcp.config import config
 from crewai_mcp.app import mcp
+from crewai_mcp.tools.utils import get_project_path
 
 logger = logging.getLogger("crewai-mcp.tools.project_management")
-
-# ── Helpers ──────────────────────────────────────────────────────────
 
 
 def _get_workspace() -> Path:
@@ -26,17 +25,6 @@ def _get_workspace() -> Path:
     workspace = config.paths.workspace
     workspace.mkdir(parents=True, exist_ok=True)
     return workspace
-
-
-def _get_project_path(project_name: str) -> Path:
-    """Get the absolute path for a project, ensuring it's within the workspace."""
-    workspace = _get_workspace()
-    # Prevent directory traversal
-    safe_name = Path(project_name).name
-    return workspace / safe_name
-
-
-# ── MCP Tools ────────────────────────────────────────────────────────
 
 
 @mcp.tool()
@@ -48,7 +36,9 @@ def crewai_create_project(
     ),
     provider: str = Field(
         default="openai",
-        description="LLM provider to use (e.g., 'openai', 'anthropic', 'gemini', 'ollama'). Note: This sets up the provider non-interactively via --skip_provider; you'll need to configure API keys in the project's .env file after creation.",
+        description="LLM provider to use (e.g., 'openai', 'anthropic', 'gemini', 'ollama'). "
+        "Note: This sets up the provider non-interactively via --skip_provider; "
+        "you'll need to configure API keys in the project's .env file after creation.",
     ),
 ) -> str:
     """
@@ -62,17 +52,14 @@ def crewai_create_project(
     You will need to manually configure the provider API keys in the project's .env file.
     """
     workspace = _get_workspace()
-    project_path = workspace / name
+    project_path = workspace / Path(name).name
 
     if project_path.exists():
         return f"Error: Project '{name}' already exists at {project_path}"
 
     try:
-        # Use --skip_provider to avoid interactive prompts
-        # The provider parameter is documented for reference but not passed to CLI
-        # since --provider still triggers interactive model/API key selection
         cmd = ["uv", "run", "crewai", "create", project_type, name, "--skip_provider"]
-        logger.info(f"Running: {' '.join(cmd)} in {workspace}")
+        logger.info("Running: %s in %s", " ".join(cmd), workspace)
 
         result = subprocess.run(
             cmd,
@@ -85,24 +72,17 @@ def crewai_create_project(
         )
 
         if result.returncode != 0:
-            return f"Failed to create project.\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+            return (
+                f"Failed to create project.\n"
+                f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+            )
 
-        # Create a basic .env file with the provider configuration
-        env_file = project_path / ".env"
-        env_content = f"# CrewAI Project Configuration\n# Provider: {provider}\n# Add your API keys below:\n"
-        if provider == "openai":
-            env_content += "OPENAI_API_KEY=your-api-key-here\nOPENAI_MODEL_NAME=gpt-4o\n"
-        elif provider == "anthropic":
-            env_content += "ANTHROPIC_API_KEY=your-api-key-here\nANTHROPIC_MODEL_NAME=claude-3-5-sonnet-20241022\n"
-        elif provider == "gemini":
-            env_content += "GEMINI_API_KEY=your-api-key-here\nGEMINI_MODEL_NAME=gemini-1.5-pro\n"
-        elif provider == "ollama":
-            env_content += "OLLAMA_BASE_URL=http://localhost:11434\nOLLAMA_MODEL_NAME=llama3.1\n"
-        
-        try:
-            env_file.write_text(env_content, encoding="utf-8")
-        except Exception:
-            pass  # Non-critical if .env creation fails
+        # Create a basic .env file with provider hints
+        _write_env_file(project_path, provider)
+
+        # Fix pyproject.toml: --skip_provider generates pre-release pins
+        # (e.g. 1.14.5a2) that don't resolve on PyPI → patch to stable range
+        _patch_pyproject_version(project_path)
 
         return (
             f"Successfully created CrewAI {project_type} '{name}' at {project_path}\n"
@@ -114,7 +94,7 @@ def crewai_create_project(
         )
 
     except subprocess.TimeoutExpired:
-        return f"Error: Project creation timed out after 120 seconds."
+        return "Error: Project creation timed out after 120 seconds."
     except Exception as e:
         logger.exception("Error creating project")
         return f"Error executing crewai cli: {str(e)}"
@@ -134,47 +114,50 @@ def crewai_install_deps(
     Runs `crewai install` inside the project directory and optionally
     installs additional packages (e.g., specific crewai-tools).
     """
-    project_path = _get_project_path(project_name)
+    project_path = get_project_path(project_name)
 
     if not project_path.exists():
         return f"Error: Project '{project_name}' not found at {project_path}"
 
-    output = []
+    output_lines = []
 
     try:
         # 1. Run crewai install
         cmd = ["uv", "run", "crewai", "install"]
-        logger.info(f"Running: {' '.join(cmd)} in {project_path}")
+        logger.info("Running: %s in %s", " ".join(cmd), project_path)
         result = subprocess.run(
             cmd,
             cwd=project_path,
             capture_output=True,
             text=True,
             check=False,
+            timeout=300,
             stdin=subprocess.DEVNULL,
         )
-        output.append(f"crewai install:\n{result.stdout}\n{result.stderr}")
+        output_lines.append(f"crewai install:\n{result.stdout}\n{result.stderr}")
 
-        # 2. Install extra packages if requested
-        if extra_packages:
-            # Check if using uv or pip
+        # 2. Install extra packages if requested (and actually a list)
+        if extra_packages and isinstance(extra_packages, list):
             has_uv = (project_path / "uv.lock").exists() or (project_path.parent / "uv.lock").exists()
             install_cmd = ["uv", "add"] if has_uv else ["pip", "install"]
             install_cmd.extend(extra_packages)
 
-            logger.info(f"Running: {' '.join(install_cmd)} in {project_path}")
+            logger.info("Running: %s in %s", " ".join(install_cmd), project_path)
             res2 = subprocess.run(
                 install_cmd,
                 cwd=project_path,
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=300,
                 stdin=subprocess.DEVNULL,
             )
-            output.append(f"installing extras:\n{res2.stdout}\n{res2.stderr}")
+            output_lines.append(f"installing extras:\n{res2.stdout}\n{res2.stderr}")
 
-        return "\n\n".join(output)
+        return "\n\n".join(output_lines)
 
+    except subprocess.TimeoutExpired:
+        return "Error: Dependency installation timed out after 300 seconds."
     except Exception as e:
         logger.exception("Error installing dependencies")
         return f"Error: {str(e)}"
@@ -190,14 +173,14 @@ def crewai_project_info(
     Returns the pyproject.toml dependencies, available YAML configs,
     and Python source files to understand the current state of the project.
     """
-    project_path = _get_project_path(project_name)
+    project_path = get_project_path(project_name)
 
     if not project_path.exists():
         return f"Error: Project '{project_name}' not found at {project_path}"
 
     info = {"name": project_name, "path": str(project_path), "files": {}, "configs": {}}
 
-    # Try to read pyproject.toml
+    # Read pyproject.toml
     pyproject = project_path / "pyproject.toml"
     if pyproject.exists():
         info["files"]["pyproject.toml"] = pyproject.read_text(errors="replace")
@@ -215,3 +198,46 @@ def crewai_project_info(
         info["files"]["python_sources"] = python_files
 
     return json.dumps(info, indent=2)
+
+
+# ── Internal helpers ─────────────────────────────────────────────────
+
+
+def _write_env_file(project_path: Path, provider: str) -> None:
+    """Create a .env file with provider-specific template."""
+    env_file = project_path / ".env"
+    content = (
+        f"# CrewAI Project Configuration\n"
+        f"# Provider: {provider}\n"
+        f"# Add your API keys below:\n"
+    )
+    if provider == "openai":
+        content += "OPENAI_API_KEY=your-api-key-here\nOPENAI_MODEL_NAME=gpt-4o\n"
+    elif provider == "anthropic":
+        content += "ANTHROPIC_API_KEY=your-api-key-here\nANTHROPIC_MODEL_NAME=claude-3-5-sonnet-20241022\n"
+    elif provider == "gemini":
+        content += "GEMINI_API_KEY=your-api-key-here\nGEMINI_MODEL_NAME=gemini-1.5-pro\n"
+    elif provider == "ollama":
+        content += "OLLAMA_BASE_URL=http://localhost:11434\nOLLAMA_MODEL_NAME=llama3.1\n"
+    try:
+        env_file.write_text(content, encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _patch_pyproject_version(project_path: Path) -> None:
+    """Replace pre-release crewai pin with stable version range."""
+    import re
+
+    pyproject = project_path / "pyproject.toml"
+    try:
+        content = pyproject.read_text(encoding="utf-8")
+        content = re.sub(
+            r'"crewai\[tools\]==\d+\.\d+\.\d+[a-z]*\d*"',
+            '"crewai[tools]>=1.14.0"',
+            content,
+        )
+        pyproject.write_text(content, encoding="utf-8")
+        logger.info("Patched pyproject.toml to use stable crewai version")
+    except Exception:
+        pass

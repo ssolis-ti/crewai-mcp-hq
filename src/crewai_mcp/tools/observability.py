@@ -8,19 +8,13 @@ from __future__ import annotations
 
 import logging
 import subprocess
-from pathlib import Path
 
 from pydantic import Field
 
-from crewai_mcp.config import config
 from crewai_mcp.app import mcp
+from crewai_mcp.tools.utils import get_project_path
 
 logger = logging.getLogger("crewai-mcp.tools.observability")
-
-
-def _get_project_path(project_name: str) -> Path:
-    safe_name = Path(project_name).name
-    return config.paths.workspace / safe_name
 
 
 @mcp.tool()
@@ -35,13 +29,13 @@ def crewai_test_crew(
     Runs `crewai test -n {iterations} -m {model}`.
     This helps in assessing the quality of the crew's execution.
     """
-    project_path = _get_project_path(project_name)
+    project_path = get_project_path(project_name)
     if not project_path.exists():
         return f"Error: Project '{project_name}' not found."
 
     try:
         cmd = ["uv", "run", "crewai", "test", "-n", str(iterations), "-m", model]
-        logger.info(f"Running: {' '.join(cmd)} in {project_path}")
+        logger.info("Running: %s in %s", " ".join(cmd), project_path)
 
         result = subprocess.run(
             cmd,
@@ -49,12 +43,19 @@ def crewai_test_crew(
             capture_output=True,
             text=True,
             check=False,
+            timeout=600,
             stdin=subprocess.DEVNULL,
         )
 
-        output = f"Exit code: {result.returncode}\n\nSTDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-        return f"Test completed.\n\n{output}"
+        return (
+            f"Test completed.\n\n"
+            f"Exit code: {result.returncode}\n\n"
+            f"STDOUT:\n{result.stdout}\n\n"
+            f"STDERR:\n{result.stderr}"
+        )
 
+    except subprocess.TimeoutExpired:
+        return "Error: Crew test timed out after 600 seconds."
     except Exception as e:
         logger.exception("Error testing crew")
         return f"Error: {str(e)}"
@@ -72,13 +73,13 @@ def crewai_train_crew(
     Runs `crewai train -n {iterations} -f {filename}`.
     Agent training provides human-in-the-loop feedback to optimize prompts.
     """
-    project_path = _get_project_path(project_name)
+    project_path = get_project_path(project_name)
     if not project_path.exists():
         return f"Error: Project '{project_name}' not found."
 
     try:
         cmd = ["uv", "run", "crewai", "train", "-n", str(iterations), "-f", filename]
-        logger.info(f"Running: {' '.join(cmd)} in {project_path}")
+        logger.info("Running: %s in %s", " ".join(cmd), project_path)
 
         result = subprocess.run(
             cmd,
@@ -86,12 +87,19 @@ def crewai_train_crew(
             capture_output=True,
             text=True,
             check=False,
+            timeout=1200,
             stdin=subprocess.DEVNULL,
         )
 
-        output = f"Exit code: {result.returncode}\n\nSTDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-        return f"Training run finished.\n\n{output}"
+        return (
+            f"Training run finished.\n\n"
+            f"Exit code: {result.returncode}\n\n"
+            f"STDOUT:\n{result.stdout}\n\n"
+            f"STDERR:\n{result.stderr}"
+        )
 
+    except subprocess.TimeoutExpired:
+        return "Error: Crew training timed out after 1200 seconds."
     except Exception as e:
         logger.exception("Error training crew")
         return f"Error: {str(e)}"
@@ -108,13 +116,13 @@ def crewai_replay_task(
     Runs `crewai replay -t {task_id}`.
     Useful for debugging and retrying specific failed tasks.
     """
-    project_path = _get_project_path(project_name)
+    project_path = get_project_path(project_name)
     if not project_path.exists():
         return f"Error: Project '{project_name}' not found."
 
     try:
         cmd = ["uv", "run", "crewai", "replay", "-t", task_id]
-        logger.info(f"Running: {' '.join(cmd)} in {project_path}")
+        logger.info("Running: %s in %s", " ".join(cmd), project_path)
 
         result = subprocess.run(
             cmd,
@@ -122,12 +130,19 @@ def crewai_replay_task(
             capture_output=True,
             text=True,
             check=False,
+            timeout=600,
             stdin=subprocess.DEVNULL,
         )
 
-        output = f"Exit code: {result.returncode}\n\nSTDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-        return f"Replay finished.\n\n{output}"
+        return (
+            f"Replay finished.\n\n"
+            f"Exit code: {result.returncode}\n\n"
+            f"STDOUT:\n{result.stdout}\n\n"
+            f"STDERR:\n{result.stderr}"
+        )
 
+    except subprocess.TimeoutExpired:
+        return "Error: Task replay timed out after 600 seconds."
     except Exception as e:
         logger.exception("Error replaying task")
         return f"Error: {str(e)}"

@@ -16,13 +16,9 @@ from pydantic import Field
 
 from crewai_mcp.config import config
 from crewai_mcp.app import mcp
+from crewai_mcp.tools.utils import get_project_path
 
 logger = logging.getLogger("crewai-mcp.tools.agent_lifecycle")
-
-
-def _get_project_path(project_name: str) -> Path:
-    safe_name = Path(project_name).name
-    return config.paths.workspace / safe_name
 
 
 @mcp.tool()
@@ -49,7 +45,7 @@ def crewai_define_agent(
     """
     import yaml
 
-    project_path = _get_project_path(project_name)
+    project_path = get_project_path(project_name)
     agents_yaml = project_path / "src" / project_name / "config" / "agents.yaml"
 
     if not agents_yaml.exists():
@@ -197,7 +193,7 @@ def crewai_define_task(
     """
     import yaml
 
-    project_path = _get_project_path(project_name)
+    project_path = get_project_path(project_name)
     tasks_yaml = project_path / "src" / project_name / "config" / "tasks.yaml"
 
     if not tasks_yaml.exists():
@@ -242,7 +238,7 @@ def crewai_kickoff(
     which properly injects inputs into the crew execution. This is the recommended
     way to run crews from the MCP server.
     """
-    project_path = _get_project_path(project_name)
+    project_path = get_project_path(project_name)
 
     if not project_path.exists():
         return f"Error: Project '{project_name}' not found."
@@ -335,7 +331,7 @@ def crewai_edit_crew_py(
     if other_params is None:
         other_params = {}
 
-    project_path = _get_project_path(project_name)
+    project_path = get_project_path(project_name)
     crew_py = project_path / "src" / project_name / "crew.py"
 
     if not crew_py.exists():

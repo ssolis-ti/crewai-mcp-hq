@@ -8,21 +8,16 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
+import subprocess
 from typing import Optional
 
 from pydantic import Field
 
-from crewai_mcp.config import config
 from crewai_mcp.knowledge.retriever import get_retriever
 from crewai_mcp.app import mcp
+from crewai_mcp.tools.utils import get_project_path
 
 logger = logging.getLogger("crewai-mcp.tools.knowledge_memory")
-
-
-def _get_project_path(project_name: str) -> Path:
-    safe_name = Path(project_name).name
-    return config.paths.workspace / safe_name
 
 
 @mcp.tool()
@@ -67,17 +62,15 @@ def crewai_manage_memory(
     Use 'reset' to run `crewai reset-memories` (requires --all flag or specific options).
     Use 'status' to check if the project has memory enabled.
     """
-    project_path = _get_project_path(project_name)
+    project_path = get_project_path(project_name)
 
     if not project_path.exists():
         return f"Error: Project '{project_name}' not found."
 
     if action == "reset":
         try:
-            import subprocess
-
-            cmd = ["crewai", "reset-memories", "--all"]
-            logger.info(f"Running: {' '.join(cmd)} in {project_path}")
+            cmd = ["uv", "run", "crewai", "reset-memories", "--all"]
+            logger.info("Running: %s in %s", " ".join(cmd), project_path)
 
             result = subprocess.run(
                 cmd,
@@ -85,18 +78,23 @@ def crewai_manage_memory(
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=120,
                 stdin=subprocess.DEVNULL,
             )
 
             if result.returncode == 0:
                 return f"Memories reset successfully.\n{result.stdout}"
-            else:
-                return f"Failed to reset memories.\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+            return (
+                f"Failed to reset memories.\n"
+                f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+            )
+
+        except subprocess.TimeoutExpired:
+            return "Error: Memory reset timed out after 120 seconds."
         except Exception as e:
             return f"Error: {str(e)}"
 
-    elif action == "status":
-        # Check if memory=True in crew.py
+    if action == "status":
         crew_file = project_path / "src" / project_name / "crew.py"
         if not crew_file.exists():
             return "Cannot find crew.py to check memory status."

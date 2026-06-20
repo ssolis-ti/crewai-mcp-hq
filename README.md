@@ -1,128 +1,142 @@
 # 🚀 CrewAI MCP Orchestrator
 
-The **CrewAI MCP Orchestrator** is a highly capable Model Context Protocol (MCP) server that transforms any compatible LLM or AI Assistant into a master orchestrator of the [CrewAI](https://docs.crewai.com/) framework. 
+MCP server that turns any LLM into a [CrewAI](https://docs.crewai.com/) orchestrator. **15 tools**, prebuilt crew templates, and RAG engine with 266+ indexed docs.
 
-This server provides **13 dynamic tools**, integrated RAG documentation search (ChromaDB), and programmatic control over CrewAI projects, enabling LLMs to dynamically generate, edit, test, and execute multi-agent systems.
-
----
-
-## 🌟 Key Features
-
-1. **Integrated Knowledge Base (RAG)**: Automatically chunks and indexes CrewAI Markdown documentation so the AI can read guides and concepts via `crewai_query_knowledge`.
-2. **Project Scaffolding**: Create native CrewAI projects and flows isolated in a `/workspace` directory.
-3. **YAML Lifecycle Management**: Define agents, tasks, and flows directly using Python and Pydantic without breaking the CLI structures.
-4. **Observability & Debugging**: Automatically run tests, train models, and replay failed tasks.
-5. **Multi-Transport Support**: Works locally via `stdio` for IDEs or via `SSE/HTTP` using the included Docker configuration.
+📖 **Documentation**: [English](https://docs.crewai.com) · [Español](#-documentación-en-español)
 
 ---
 
-## 🛠️ Installation & Setup
-
-We recommend using [`uv`](https://github.com/astral-sh/uv) for lightning-fast dependency management.
+## ⚡ Install
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/tu-usuario/cwai-mcp.git
-cd cwai-mcp
-
-# 2. Sync and install dependencies (creates isolated .venv)
+git clone https://github.com/ssolis-ti/crewai-mcp-hq.git
+cd crewai-mcp-hq
 uv sync
-
-# 3. Add documentation (Optional but recommended)
-# Place CrewAI markdown files inside the /docs folder to be automatically indexed.
 ```
 
 ---
 
-## 🔌 IDE & Client Integration (MCP)
+## 🔌 Connect to MCP Clients
 
-To connect your favorite AI IDE or Assistant to this server, you need to configure an MCP connection over `stdio`. Since the server uses `uv` and its own virtual environment, it's highly recommended to point directly to the `.venv` Python executable for speed and clean stdout streams.
-
-### 🌌 Antigravity
-Open your `mcp_config.json` (usually located in `.gemini/config/mcp_config.json`) and add:
-
-```json
-{
-  "mcpServers": {
-    "crewai-orchestrator": {
-      "command": "C:\\Ruta\\Absoluta\\cwai-mcp\\.venv\\Scripts\\python.exe",
-      "args": ["-X", "utf8", "-m", "crewai_mcp.server"],
-      "cwd": "C:/Ruta/Absoluta/cwai-mcp",
-      "env": {
-        "CREWAI_MCP_TRANSPORT": "stdio",
-        "PYTHONUTF8": "1"
-      }
-    }
-  }
-}
-```
-
-### 🤖 Claude Desktop / Claude Code
-Open your Claude Desktop config file (Windows: `%APPDATA%\Claude\claude_desktop_config.json`, Mac: `~/Library/Application Support/Claude/claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "crewai-orchestrator": {
-      "command": "/absolute/path/to/cwai-mcp/.venv/bin/python",
-      "args": ["-m", "crewai_mcp.server"],
-      "cwd": "/absolute/path/to/cwai-mcp",
-      "env": {
-        "CREWAI_MCP_TRANSPORT": "stdio"
-      }
-    }
-  }
-}
-```
-
-### 💻 Roo Code / Cline (VS Code)
-Open your MCP settings from the extension UI or edit `cline_mcp_settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "crewai-orchestrator": {
-      "command": "C:\\Ruta\\Absoluta\\cwai-mcp\\.venv\\Scripts\\python.exe",
-      "args": ["-X", "utf8", "-m", "crewai_mcp.server"],
-      "cwd": "C:/Ruta/Absoluta/cwai-mcp",
-      "env": {
-        "CREWAI_MCP_TRANSPORT": "stdio",
-        "PYTHONUTF8": "1"
-      }
-    }
-  }
-}
-```
-
-### 🐾 OpenClaw / Generic Stdio
-For OpenClaw or any other generic MCP client, simply configure a local process executing:
-- **Command:** `/absolute/path/to/.venv/bin/python` (or `python.exe` on Windows)
-- **Args:** `["-m", "crewai_mcp.server"]`
-- **Env:** `CREWAI_MCP_TRANSPORT=stdio`
-
----
-
-## 🐳 Docker Deployment (SSE)
-
-If you wish to deploy the MCP orchestrator as a standalone microservice (e.g., inside a Docker Triad architecture), it supports Server-Sent Events (SSE).
-
+### Hermes Agent
 ```bash
-# Build and run using Docker Compose
-docker-compose up --build -d
+hermes mcp add crewai-orchestrator \
+  --command "/path/to/crewai-mcp-hq/.venv/Scripts/python.exe"
+  --args "-X utf8 -m crewai_mcp.server"
 ```
-The server will be available at `http://localhost:8000/sse`.
+
+### Claude Desktop / Cursor / Roo Code
+```json
+{
+  "mcpServers": {
+    "crewai-orchestrator": {
+      "command": "/path/to/crewai-mcp-hq/.venv/bin/python",
+      "args": ["-m", "crewai_mcp.server"],
+      "cwd": "/path/to/crewai-mcp-hq",
+      "env": { "CREWAI_MCP_TRANSPORT": "stdio" }
+    }
+  }
+}
+```
+
+### Docker (SSE)
+```bash
+docker-compose up -d
+# Available at http://localhost:8808/sse
+```
 
 ---
 
-## 🧰 Available Tools
+## 🧰 Tools (15)
 
 | Domain | Tools |
 |---|---|
-| **Project Management** | `crewai_create_project`, `crewai_install_deps`, `crewai_project_info` |
-| **Agent Lifecycle** | `crewai_define_agent`, `crewai_define_task`, `crewai_kickoff` |
-| **Flow Orchestration**| `crewai_flow_plot`, `crewai_flow_run` |
-| **Knowledge/Memory** | `crewai_query_knowledge`, `crewai_manage_memory` |
+| **Projects** | `crewai_create_project`, `crewai_install_deps`, `crewai_project_info` |
+| **Templates** | `crewai_apply_template` |
+| **Agents & Tasks** | `crewai_define_agent`, `crewai_define_task`, `crewai_edit_crew_py`, `crewai_kickoff` |
+| **Flows** | `crewai_flow_plot`, `crewai_flow_run` |
+| **Knowledge** | `crewai_query_knowledge`, `crewai_manage_memory` |
 | **Observability** | `crewai_test_crew`, `crewai_train_crew`, `crewai_replay_task` |
 
+---
+
+## 🧩 Prebuilt Crew Templates
+
+Deploy a full team in one call — no per-agent setup:
+
+```python
+crewai_create_project(name="my-mvp", project_type="crew")
+crewai_apply_template(project_name="my-mvp", template_name="cyberops")
+# agents.yaml, tasks.yaml, and crew.py ready to run
+```
+
+### CyberOps — MVP Development Team
+
+5-agent sequential crew. Input: project description. Output: PRD + architecture + code + docs + QA.
+
+| Agent | Role | Model |
+|---|---|---|
+| PRD_Architect | Requirements & user stories | deepseek-v4-pro |
+| System_Designer | Architecture (ADRs, C4, API) | llama-3.3-70b |
+| AI_Developer | AI-first code (<100 lines/file) | llama-4-maverick |
+| Doc_Engineer | LLM-optimized documentation | qwen3-next-80b |
+| QA_Reviewer | Quality audit & traceability | llama-3.1-70b |
+
+---
+
+## 📚 Documentation Resources
+
+| URI | Content |
+|---|---|
+| `crewai://docs/index` | 266+ docs across 31 categories |
+| `crewai://docs/concepts/agents` | Specific documentation pages |
+| `crewai://docs/search/{query}` | Keyword search |
+| `crewai://templates/index` | Agent, crew & flow templates |
+| `crewai://templates/prebuilt/index` | Full crew templates (CyberOps + extensible) |
+
+---
+
+## 🛡️ Robustness
+
+- **Auto-patch versions**: `crewai create` outputs pre-release pins → auto-patched to `>=1.14.0`
+- **Name normalization**: hyphens/underscores handled transparently
+- **Timeouts on all subprocess calls**: 120s–1200s depending on operation
+- **Standardized CLI**: always `uv run crewai`, no PATH dependency
+
+---
+
+## 📁 Structure
+
+```
+src/crewai_mcp/
+├── server.py           ← Entry point (stdio/sse/streamable-http)
+├── resources/          ← Docs, templates, prebuilt crews
+├── tools/              ← 15 tools + shared utils.py
+├── prompts/            ← Guided workflows (design_crew, debug_crew)
+└── knowledge/          ← ChromaDB indexer + retriever
+```
+
+---
+
+## 📖 Documentación en Español
+
+La documentación de CrewAI está disponible en inglés en [docs.crewai.com](https://docs.crewai.com). Para usar el MCP en español:
+
+- El motor RAG indexa docs en inglés pero responde preguntas en cualquier idioma
+- Los templates de crews aceptan descripciones de proyecto en español
+- Las herramientas retornan mensajes en inglés; el LLM que consume el MCP traduce al contexto del usuario
+
+Guías rápidas en español:
+
+| Guía | Descripción |
+|---|---|
+| [Instalación y setup](#-install) | Clonar, instalar dependencias, conectar a tu IDE |
+| [CyberOps template](#cyberops--mvp-development-team) | Equipo de 5 agentes para crear MVPs desde cero |
+| [Herramientas](#-tools-15) | Referencia completa de las 15 herramientas |
+| [Ejemplo: crear un proyecto](#-prebuilt-crew-templates) | `create_project` + `apply_template` en 2 pasos |
+
+---
+
 ## 📝 License
-MIT License. Created to supercharge AI-driven multi-agent orchestration.
+
+MIT

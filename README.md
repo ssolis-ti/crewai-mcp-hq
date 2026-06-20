@@ -74,13 +74,13 @@ crewai_apply_template(project_name="my-mvp", template_name="cyberops")
 
 5-agent sequential crew. Input: project description. Output: PRD + architecture + code + docs + QA.
 
-| Agent | Role | Model |
+| Agent | Role | Configurable |
 |---|---|---|
-| PRD_Architect | Requirements & user stories | deepseek-v4-pro |
-| System_Designer | Architecture (ADRs, C4, API) | llama-3.3-70b |
-| AI_Developer | AI-first code (<100 lines/file) | llama-4-maverick |
-| Doc_Engineer | LLM-optimized documentation | qwen3-next-80b |
-| QA_Reviewer | Quality audit & traceability | llama-3.1-70b |
+| PRD_Architect | Requirements & user stories | LLM, tools, max_iter |
+| System_Designer | Architecture (ADRs, C4, API) | LLM, tools, max_iter |
+| AI_Developer | AI-first code (<100 lines/file) | LLM, tools, max_iter |
+| Doc_Engineer | LLM-optimized documentation | LLM, tools, max_iter |
+| QA_Reviewer | Quality audit & traceability | LLM, tools, max_iter |
 
 ---
 

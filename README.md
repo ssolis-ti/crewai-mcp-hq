@@ -84,6 +84,51 @@ crewai_apply_template(project_name="my-mvp", template_name="cyberops")
 
 ---
 
+## 🗺️ Deployment Workflow (with your AI assistant)
+
+The logical order to deploy a team of agents using the MCP. Just tell your assistant "I need a team for X" and it handles the rest:
+
+```
+1. CREATE      crewai_create_project("my-team", "crew")
+                ↓
+2. TEMPLATE    crewai_apply_template("my-team", "cyberops")
+                ↓
+3. INSTALL     crewai_install_deps("my-team")
+                ↓
+4. KICKOFF     crewai_kickoff("my-team", inputs={...})
+                ↓
+5. ITERATE     crewai_test_crew / crewai_replay_task / crewai_train_crew
+```
+
+### Step-by-step with your AI assistant
+
+| Step | What you say | Tool called |
+|---|---|---|
+| **Research** | *"I need a team to build [project]"* | `crewai_query_knowledge` — assistant researches CrewAI docs |
+| **Scaffold** | *"Create the project"* | `crewai_create_project` — directory + pyproject.toml |
+| **Template** | *"Apply CyberOps template"* | `crewai_apply_template` — agents + tasks + crew.py |
+| **Customize** | *"Change AI_Developer to use gpt-4"* | `crewai_edit_crew_py` — per-agent LLM/tools config |
+| **Install** | *"Install dependencies"* | `crewai_install_deps` — pip/uv sync |
+| **Run** | *"Execute the crew"* | `crewai_kickoff` — agents work sequentially |
+| **Debug** | *"QA agent failed — retry it"* | `crewai_replay_task` — resumes from failed task |
+| **Improve** | *"Test and train"* | `crewai_test_crew` / `crewai_train_crew` |
+
+### Building a custom team from scratch
+
+No prebuilt template? Define agents and tasks one by one:
+
+```
+1. CREATE     crewai_create_project("my-custom", "crew")
+2. AGENTS     crewai_define_agent("my-custom", "researcher", role="...")
+              crewai_define_agent("my-custom", "writer", role="...")
+3. TASKS      crewai_define_task("my-custom", "research", agent="researcher")
+              crewai_define_task("my-custom", "write", agent="writer")
+4. INSTALL    crewai_install_deps("my-custom")
+5. KICKOFF    crewai_kickoff("my-custom", inputs={...})
+```
+
+---
+
 ## 📚 Documentation Resources
 
 | URI | Content |

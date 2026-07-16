@@ -61,21 +61,27 @@ async def crewai_create_project(
         return f"Error: Invalid project_type '{project_type}'. Use 'crew' or 'flow'."
 
     workspace = _get_workspace()
-    project_path = workspace / Path(name).name
 
+    # Sanitize: strip any path components so the CLI can't create the
+    # project outside the workspace (e.g. name='../evil').
+    safe_name = Path(name).name
+
+    # get_project_path also checks the underscore-normalized variant the
+    # CLI actually creates (my-crew → my_crew), so duplicates are caught.
+    project_path = get_project_path(safe_name)
     if project_path.exists():
-        return f"Error: Project '{name}' already exists at {project_path}"
+        return f"Error: Project '{safe_name}' already exists at {project_path}"
 
     try:
         code, stdout, stderr = await run_crewai_command_async(
-            "create", project_type, name, "--skip_provider", cwd=workspace, timeout=120
+            "create", project_type, safe_name, "--skip_provider", cwd=workspace, timeout=120
         )
 
         if code != 0:
             return f"Failed to create project.\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
 
         # The CLI normalizes hyphens → underscores; resolve what it actually created
-        project_path = get_project_path(name)
+        project_path = get_project_path(safe_name)
 
         # Create a basic .env file with provider hints
         _write_env_file(project_path, provider)

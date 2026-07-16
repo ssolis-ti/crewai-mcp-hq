@@ -34,7 +34,7 @@ def _register_all():
     import crewai_mcp.prompts.workflows  # noqa
     logger.info("All resources, tools, and prompts registered.")
 
-if __name__ == "__main__":
+def main():
     _register_all()
     from crewai_mcp.config import config
     
@@ -60,4 +60,7 @@ if __name__ == "__main__":
     else:
         logger.error(f"Unknown transport: {transport}. Falling back to stdio.")
         mcp.run(transport="stdio")
+
+if __name__ == "__main__":
+    main()
 

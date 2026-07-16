@@ -12,15 +12,15 @@ import subprocess
 from pydantic import Field
 
 from crewai_mcp.app import mcp
-from crewai_mcp.tools.utils import get_project_path
+from crewai_mcp.tools.utils import get_project_path, run_crewai_command_async
 
 logger = logging.getLogger("crewai-mcp.tools.observability")
 
 
 @mcp.tool()
-def crewai_test_crew(
+async def crewai_test_crew(
     project_name: str = Field(..., description="Project name"),
-    iterations: int = Field(default=2, description="Number of testing iterations"),
+    iterations: int = Field(default=2, description="Number of testing iterations", ge=1, le=20),
     model: str = Field(default="openai/gpt-4o", description="LLM to use for evaluation"),
 ) -> str:
     """
@@ -34,24 +34,14 @@ def crewai_test_crew(
         return f"Error: Project '{project_name}' not found."
 
     try:
-        cmd = ["uv", "run", "crewai", "test", "-n", str(iterations), "-m", model]
-        logger.info("Running: %s in %s", " ".join(cmd), project_path)
-
-        result = subprocess.run(
-            cmd,
-            cwd=project_path,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=600,
-            stdin=subprocess.DEVNULL,
+        code, stdout, stderr = await run_crewai_command_async(
+            "test", "-n", str(iterations), "-m", model, cwd=project_path, timeout=600
         )
-
         return (
             f"Test completed.\n\n"
-            f"Exit code: {result.returncode}\n\n"
-            f"STDOUT:\n{result.stdout}\n\n"
-            f"STDERR:\n{result.stderr}"
+            f"Exit code: {code}\n\n"
+            f"STDOUT:\n{stdout}\n\n"
+            f"STDERR:\n{stderr}"
         )
 
     except subprocess.TimeoutExpired:
@@ -62,9 +52,9 @@ def crewai_test_crew(
 
 
 @mcp.tool()
-def crewai_train_crew(
+async def crewai_train_crew(
     project_name: str = Field(..., description="Project name"),
-    iterations: int = Field(default=5, description="Number of training iterations"),
+    iterations: int = Field(default=5, description="Number of training iterations", ge=1, le=50),
     filename: str = Field(default="trained_agents_data.pkl", description="Output file for trained weights"),
 ) -> str:
     """
@@ -78,24 +68,14 @@ def crewai_train_crew(
         return f"Error: Project '{project_name}' not found."
 
     try:
-        cmd = ["uv", "run", "crewai", "train", "-n", str(iterations), "-f", filename]
-        logger.info("Running: %s in %s", " ".join(cmd), project_path)
-
-        result = subprocess.run(
-            cmd,
-            cwd=project_path,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=1200,
-            stdin=subprocess.DEVNULL,
+        code, stdout, stderr = await run_crewai_command_async(
+            "train", "-n", str(iterations), "-f", filename, cwd=project_path, timeout=1200
         )
-
         return (
             f"Training run finished.\n\n"
-            f"Exit code: {result.returncode}\n\n"
-            f"STDOUT:\n{result.stdout}\n\n"
-            f"STDERR:\n{result.stderr}"
+            f"Exit code: {code}\n\n"
+            f"STDOUT:\n{stdout}\n\n"
+            f"STDERR:\n{stderr}"
         )
 
     except subprocess.TimeoutExpired:
@@ -106,7 +86,7 @@ def crewai_train_crew(
 
 
 @mcp.tool()
-def crewai_replay_task(
+async def crewai_replay_task(
     project_name: str = Field(..., description="Project name"),
     task_id: str = Field(..., description="ID of the task to replay from"),
 ) -> str:
@@ -121,24 +101,14 @@ def crewai_replay_task(
         return f"Error: Project '{project_name}' not found."
 
     try:
-        cmd = ["uv", "run", "crewai", "replay", "-t", task_id]
-        logger.info("Running: %s in %s", " ".join(cmd), project_path)
-
-        result = subprocess.run(
-            cmd,
-            cwd=project_path,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=600,
-            stdin=subprocess.DEVNULL,
+        code, stdout, stderr = await run_crewai_command_async(
+            "replay", "-t", task_id, cwd=project_path, timeout=600
         )
-
         return (
             f"Replay finished.\n\n"
-            f"Exit code: {result.returncode}\n\n"
-            f"STDOUT:\n{result.stdout}\n\n"
-            f"STDERR:\n{result.stderr}"
+            f"Exit code: {code}\n\n"
+            f"STDOUT:\n{stdout}\n\n"
+            f"STDERR:\n{stderr}"
         )
 
     except subprocess.TimeoutExpired:

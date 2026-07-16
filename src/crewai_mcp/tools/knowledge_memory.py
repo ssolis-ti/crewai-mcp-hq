@@ -13,18 +13,26 @@ from typing import Optional
 
 from pydantic import Field
 
-from crewai_mcp.knowledge.retriever import get_retriever
 from crewai_mcp.app import mcp
-from crewai_mcp.tools.utils import get_project_path
+from crewai_mcp.knowledge.retriever import get_retriever
+from crewai_mcp.tools.utils import (
+    get_module_dir,
+    get_project_path,
+    run_crewai_command_async,
+    to_thread,
+)
 
 logger = logging.getLogger("crewai-mcp.tools.knowledge_memory")
 
 
 @mcp.tool()
-def crewai_query_knowledge(
-    query: str,
-    limit: int = 5,
-    category: Optional[str] = None,
+async def crewai_query_knowledge(
+    query: str = Field(..., description="Natural language search query"),
+    limit: int = Field(default=5, description="Maximum number of results", ge=1, le=20),
+    category: Optional[str] = Field(
+        default=None,
+        description="Optional category filter (e.g., 'concepts', 'learn', 'tools.ai-ml')",
+    ),
 ) -> str:
     """
     Query the internal CrewAI documentation RAG engine.
@@ -34,7 +42,8 @@ def crewai_query_knowledge(
     relevant snippets with their source URIs.
     """
     retriever = get_retriever()
-    results = retriever.search(query=query, limit=limit, category_filter=category)
+    # First call may build the ChromaDB index — keep it off the event loop.
+    results = await to_thread(retriever.search, query=query, limit=limit, category_filter=category)
 
     if not results:
         return f"No documentation found answering: '{query}'"
@@ -52,14 +61,14 @@ def crewai_query_knowledge(
 
 
 @mcp.tool()
-def crewai_manage_memory(
+async def crewai_manage_memory(
     project_name: str = Field(..., description="Project name"),
     action: str = Field(..., description="Action: 'reset' or 'status'"),
 ) -> str:
     """
     Manage CrewAI memory for a specific project.
 
-    Use 'reset' to run `crewai reset-memories` (requires --all flag or specific options).
+    Use 'reset' to run `crewai reset-memories --all`.
     Use 'status' to check if the project has memory enabled.
     """
     project_path = get_project_path(project_name)
@@ -69,25 +78,12 @@ def crewai_manage_memory(
 
     if action == "reset":
         try:
-            cmd = ["uv", "run", "crewai", "reset-memories", "--all"]
-            logger.info("Running: %s in %s", " ".join(cmd), project_path)
-
-            result = subprocess.run(
-                cmd,
-                cwd=project_path,
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=120,
-                stdin=subprocess.DEVNULL,
+            code, stdout, stderr = await run_crewai_command_async(
+                "reset-memories", "--all", cwd=project_path, timeout=120
             )
-
-            if result.returncode == 0:
-                return f"Memories reset successfully.\n{result.stdout}"
-            return (
-                f"Failed to reset memories.\n"
-                f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
-            )
+            if code == 0:
+                return f"Memories reset successfully.\n{stdout}"
+            return f"Failed to reset memories.\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
 
         except subprocess.TimeoutExpired:
             return "Error: Memory reset timed out after 120 seconds."
@@ -95,8 +91,9 @@ def crewai_manage_memory(
             return f"Error: {str(e)}"
 
     if action == "status":
-        crew_file = project_path / "src" / project_name / "crew.py"
-        if not crew_file.exists():
+        module_dir = get_module_dir(project_path)
+        crew_file = (module_dir / "crew.py") if module_dir else None
+        if crew_file is None or not crew_file.exists():
             return "Cannot find crew.py to check memory status."
 
         content = crew_file.read_text(errors="replace")
@@ -111,4 +108,4 @@ def crewai_manage_memory(
             indent=2,
         )
 
-    return f"Unknown action: {action}"
+    return f"Unknown action: {action}. Use 'reset' or 'status'."

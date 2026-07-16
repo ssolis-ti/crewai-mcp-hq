@@ -181,15 +181,10 @@ def index_docs_directory(docs_root: Path) -> list[DocChunk]:
         rel = md_file.relative_to(docs_root)
         parts = rel.parts
 
-        if len(parts) == 1:
-            category = "root"
-            topic = rel.stem
-        elif len(parts) == 2:
-            category = parts[0]
-            topic = Path(parts[1]).stem
-        else:
-            category = "/".join(parts[:-1])
-            topic = Path(parts[-1]).stem
+        # Dot separator for nested categories — must match the resource URI
+        # scheme in resources/documentation.py so returned URIs are readable.
+        category = ".".join(parts[:-1]) or "root"
+        topic = Path(parts[-1]).stem
 
         content = md_file.read_text(encoding="utf-8", errors="replace")
         chunks = chunk_markdown(content, category, topic)

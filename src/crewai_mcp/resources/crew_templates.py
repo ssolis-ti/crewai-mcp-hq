@@ -7,7 +7,6 @@ Each template includes: agents YAML, tasks YAML, crew.py code, and metadata.
 
 from __future__ import annotations
 
-import json
 import logging
 import textwrap
 

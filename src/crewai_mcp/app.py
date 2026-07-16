@@ -1,6 +1,10 @@
 from mcp.server.fastmcp import FastMCP
 
+from crewai_mcp.config import config
+
 # ── FastMCP instance ─────────────────────────────────────────────────
+# host/port must be set here (constructor settings) — FastMCP.run() does
+# NOT accept them as kwargs; they only apply to sse / streamable-http.
 mcp = FastMCP(
     name="crewai-orchestrator",
     instructions=(
@@ -11,4 +15,6 @@ mcp = FastMCP(
         "Use the resources to read documentation, the tools to create and manage "
         "CrewAI projects, and the prompts for guided workflows."
     ),
+    host=config.server.host,
+    port=config.server.port,
 )

@@ -30,7 +30,8 @@ def design_crew(use_case: str, complexity: str = "medium") -> list[PromptMessage
                 "3. **Task List**: Detail the specific tasks, expected outputs, and agent assignments.\n"
                 "4. **Tools Needed**: Recommend standard or custom tools needed for the tasks.\n"
                 "5. **State/Memory Requirements**: Do we need flows for state management, or standard crew memory?\n\n"
-                "Before answering, use the `crewai_query_knowledge` tool to review best practices for this use case if needed.",
+                "Before answering, use the `crewai_query_knowledge` tool to review "
+                "best practices for this use case if needed.",
             },
         )
     ]

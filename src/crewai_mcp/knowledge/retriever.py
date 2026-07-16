@@ -35,12 +35,13 @@ class KnowledgeRetriever:
     Lazy-initializes ChromaDB and builds the index on first query.
     """
 
-    COLLECTION_NAME = "crewai_docs"
+    # v2: category metadata switched to dot-separated nesting (tools.ai-ml) —
+    # bumping the collection name forces a rebuild of stale v1 databases.
+    COLLECTION_NAME = "crewai_docs_v2"
 
-    def __init__(self, docs_path: Path, db_path: Path, embedder_config: Optional[dict] = None):
+    def __init__(self, docs_path: Path, db_path: Path):
         self._docs_path = docs_path
         self._db_path = db_path
-        self._embedder_config = embedder_config
         self._client = None
         self._collection = None
         self._initialized = False
@@ -85,7 +86,6 @@ class KnowledgeRetriever:
             logger.warning("No documentation chunks to index.")
             return
 
-        import chromadb
 
         # Create or get collection
         self._collection = self._client.get_or_create_collection(
@@ -222,6 +222,5 @@ def get_retriever() -> KnowledgeRetriever:
         _retriever = KnowledgeRetriever(
             docs_path=config.paths.docs_path,
             db_path=config.paths.knowledge_db,
-            embedder_config=config.llm.to_embedder_config(),
         )
     return _retriever

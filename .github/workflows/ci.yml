@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly compatibility gate against the LATEST published crewai
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  # Fast suite on every push/PR: protocol, resources, lifecycle, routing
+  test:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies (pinned)
+        run: uv sync
+
+      - name: Lint
+        run: uv run ruff check src/ tests/
+
+      - name: Fast test suite (pinned crewai)
+        run: uv run pytest -m "not slow" -v
+
+  # Weekly: full suite (including heavy runtime paths) against the latest
+  # crewai on PyPI, ignoring our pins. A failure here means the next crewai
+  # release breaks us — fix or adjust bounds BEFORE upgrading.
+  compat-latest-crewai:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies (pinned)
+        run: uv sync
+
+      - name: Upgrade to latest crewai (ignore pins)
+        run: |
+          uv pip install --upgrade crewai crewai-tools
+          uv run --no-sync python -c "import importlib.metadata as m; print('crewai', m.version('crewai'))"
+
+      - name: Full test suite against latest crewai
+        run: uv run --no-sync pytest -v

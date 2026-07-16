@@ -223,9 +223,11 @@ def _patch_pyproject_version(project_path: Path) -> None:
     pyproject = project_path / "pyproject.toml"
     try:
         content = pyproject.read_text(encoding="utf-8")
+        # Upper bound: a future crewai 2.x with breaking changes must not be
+        # picked up silently by generated projects.
         content = re.sub(
             r'"crewai\[tools\]==\d+\.\d+\.\d+[a-z]*\d*"',
-            '"crewai[tools]>=1.14.0"',
+            '"crewai[tools]>=1.14.0,<2.0"',
             content,
         )
         pyproject.write_text(content, encoding="utf-8")

@@ -129,6 +129,48 @@ No prebuilt template? Define agents and tasks one by one:
 
 ---
 
+## 🤖 LLM Playbook — step-by-step instructions for the agent using this MCP
+
+> The server ships these instructions in its MCP `instructions` field, so any compliant client injects them into the LLM automatically. This section documents the same contract for humans and for system prompts.
+
+### Golden path (mandatory order)
+
+| # | Step | Tool | Precondition | Postcondition |
+|---|---|---|---|---|
+| 1 | **Research** *(optional)* | `crewai_query_knowledge(query)` | — | Relevant CrewAI patterns known |
+| 2 | **Create** | `crewai_create_project(name, "crew"\|"flow")` | Project must not exist | Scaffold in workspace |
+| 3 | **Configure** | `crewai_apply_template` **or** `crewai_define_agent` + `crewai_define_task` | Project exists | `agents.yaml`, `tasks.yaml`, `crew.py` ready |
+| 4 | **Tune** *(optional)* | `crewai_edit_crew_py(project, agent, llm=..., tools=[...])` | Agent method exists in `crew.py` | Per-agent LLM/tools set |
+| 5 | **Prepare** | User sets API keys in project `.env`, then `crewai_install_deps(project)` | Step 3 done | Venv ready, deps resolved |
+| 6 | **Run** | `crewai_kickoff(project, inputs={...})` | Steps 3+5 done, keys set | Crew output returned |
+| 7 | **Debug / improve** | `crewai_replay_task`, `crewai_test_crew`, `crewai_train_crew`, `crewai_manage_memory` | A previous run exists | Iterated quality |
+
+### Decision guide
+
+- **User wants a full team fast** → step 3a: `crewai_apply_template`. List options first: read `crewai://templates/prebuilt/index`.
+- **User describes a custom workflow** → step 3b: one `crewai_define_agent` per role, then one `crewai_define_task` per task (`agent=` references the agent name; `context=[...]` chains outputs between tasks).
+- **User has a flow (event-driven, stateful)** → `crewai_create_project(name, "flow")`, visualize with `crewai_flow_plot`, execute with `crewai_flow_run`.
+- **Unsure how something works in CrewAI** → `crewai_query_knowledge` before guessing; cite the returned `crewai://docs/...` URIs.
+
+### Invariants (do not violate)
+
+1. `create → configure → install → kickoff` — never skip or reorder.
+2. `inputs` keys in `kickoff` **must match** the `{placeholders}` in the YAML files — verify with `crewai_project_info` before running.
+3. The LLM **cannot** set API keys: ask the user to edit the project's `.env`. A kickoff without keys fails with an auth error — report it, don't retry.
+4. `install / kickoff / test / train` take minutes — call once and wait; don't fire duplicates.
+
+### Error recovery
+
+| Symptom | Action |
+|---|---|
+| `Error: Project '<x>' not found` | Wrong name or not created yet → `crewai_create_project` |
+| Kickoff fails with auth/API-key error in STDERR | Ask the user to fill the project `.env`, then retry |
+| Kickoff fails mid-run on one task | Fix the config, then `crewai_replay_task(project, task_id)` |
+| `Error: Agent method '<x>' not found in crew.py` | List real names with `crewai_project_info`, retry |
+| Stale or corrupted agent memory | `crewai_manage_memory(project, "reset")` |
+
+---
+
 ## 📚 Documentation Resources
 
 | URI | Content |
@@ -176,6 +218,7 @@ Guías rápidas en español:
 | Guía | Descripción |
 |---|---|
 | [Instalación y setup](#-install) | Clonar, instalar dependencias, conectar a tu IDE |
+| [Playbook para el LLM](#-llm-playbook--step-by-step-instructions-for-the-agent-using-this-mcp) | Instrucciones paso a paso que recibe el agente (orden obligatorio, invariantes, recuperación de errores) |
 | [CyberOps template](#cyberops--mvp-development-team) | Equipo de 5 agentes para crear MVPs desde cero |
 | [Herramientas](#-tools-15) | Referencia completa de las 15 herramientas |
 | [Ejemplo: crear un proyecto](#-prebuilt-crew-templates) | `create_project` + `apply_template` en 2 pasos |

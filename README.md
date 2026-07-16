@@ -1,6 +1,6 @@
 # 🚀 CrewAI MCP Orchestrator
 
-MCP server that turns any LLM into a [CrewAI](https://docs.crewai.com/) orchestrator. **15 tools**, prebuilt crew templates, and RAG engine with 266+ indexed docs.
+MCP server that turns any LLM into a [CrewAI](https://docs.crewai.com/) orchestrator. **18 tools**, prebuilt crew templates, multi-agent LLM routing, and RAG engine with 266+ indexed docs.
 
 📖 **Documentation**: [English](https://docs.crewai.com) · [Español](#-documentación-en-español)
 
@@ -47,16 +47,49 @@ docker-compose up -d
 
 ---
 
-## 🧰 Tools (15)
+## 🧰 Tools (18)
 
 | Domain | Tools |
 |---|---|
 | **Projects** | `crewai_create_project`, `crewai_install_deps`, `crewai_project_info` |
 | **Templates** | `crewai_apply_template` |
 | **Agents & Tasks** | `crewai_define_agent`, `crewai_define_task`, `crewai_edit_crew_py`, `crewai_kickoff` |
+| **LLM Routing** | `crewai_configure_llm_provider`, `crewai_assign_llms`, `crewai_list_agents` |
 | **Flows** | `crewai_flow_plot`, `crewai_flow_run` |
 | **Knowledge** | `crewai_query_knowledge`, `crewai_manage_memory` |
 | **Observability** | `crewai_test_crew`, `crewai_train_crew`, `crewai_replay_task` |
+
+---
+
+## 🔀 LLM Routing (multi-agent, multi-select)
+
+Connect a provider once, then route models to any subset of agents:
+
+```python
+# 1. Connect the project to a provider (writes the .env layout)
+crewai_configure_llm_provider("my-team", provider="litellm-proxy",
+                              api_base="http://localhost:4000")
+# presets: openai · anthropic · gemini · groq · ollama · openrouter · bifrost · litellm-proxy
+
+# Bifrost gateway in Docker? One call — default base http://localhost:8080/v1,
+# and the gateway holds the real provider keys (client key can be a dummy):
+crewai_configure_llm_provider("my-team", provider="bifrost")
+
+# 2. See agent names and current models
+crewai_list_agents("my-team")
+
+# 3. Route — three modes:
+crewai_assign_llms("my-team", llm="openai/gpt-4o")                        # ALL agents
+crewai_assign_llms("my-team", llm="groq/llama-3.3-70b-versatile",
+                   agents=["researcher", "writer"])                       # multi-select
+crewai_assign_llms("my-team", assignments={                               # per-agent map
+    "prd_architect": "openai/deepseek-ai/deepseek-v4-pro",
+    "ai_developer":  "openai/meta/llama-4-maverick-17b-128e-instruct",
+    "qa_reviewer":   "openai/meta/llama-3.1-70b-instruct",
+})
+```
+
+Routing updates `agents.yaml` **and** any hardcoded `llm=` override in `crew.py` (which would otherwise silently win over YAML). API keys are never required in the tool call — placeholders are written to `.env` for the user to fill in.
 
 ---
 
@@ -140,10 +173,11 @@ No prebuilt template? Define agents and tasks one by one:
 | 1 | **Research** *(optional)* | `crewai_query_knowledge(query)` | — | Relevant CrewAI patterns known |
 | 2 | **Create** | `crewai_create_project(name, "crew"\|"flow")` | Project must not exist | Scaffold in workspace |
 | 3 | **Configure** | `crewai_apply_template` **or** `crewai_define_agent` + `crewai_define_task` | Project exists | `agents.yaml`, `tasks.yaml`, `crew.py` ready |
-| 4 | **Tune** *(optional)* | `crewai_edit_crew_py(project, agent, llm=..., tools=[...])` | Agent method exists in `crew.py` | Per-agent LLM/tools set |
-| 5 | **Prepare** | User sets API keys in project `.env`, then `crewai_install_deps(project)` | Step 3 done | Venv ready, deps resolved |
-| 6 | **Run** | `crewai_kickoff(project, inputs={...})` | Steps 3+5 done, keys set | Crew output returned |
-| 7 | **Debug / improve** | `crewai_replay_task`, `crewai_test_crew`, `crewai_train_crew`, `crewai_manage_memory` | A previous run exists | Iterated quality |
+| 4 | **Connect LLMs** | `crewai_configure_llm_provider(project, provider, api_base=...)`, then `crewai_assign_llms` (see [LLM Routing](#-llm-routing-multi-agent-multi-select)) | Step 3 done | Provider in `.env`, models routed per agent |
+| 5 | **Tune** *(optional)* | `crewai_edit_crew_py(project, agent, llm=..., tools=[...])` | Agent method exists in `crew.py` | Per-agent LLM/tools set |
+| 6 | **Prepare** | User sets API keys in project `.env`, then `crewai_install_deps(project)` | Step 3 done | Venv ready, deps resolved |
+| 7 | **Run** | `crewai_kickoff(project, inputs={...})` | Steps 3+6 done, keys set | Crew output returned |
+| 8 | **Debug / improve** | `crewai_replay_task`, `crewai_test_crew`, `crewai_train_crew`, `crewai_manage_memory` | A previous run exists | Iterated quality |
 
 ### Decision guide
 
@@ -198,7 +232,7 @@ No prebuilt template? Define agents and tasks one by one:
 src/crewai_mcp/
 ├── server.py           ← Entry point (stdio/sse/streamable-http)
 ├── resources/          ← Docs, templates, prebuilt crews
-├── tools/              ← 15 tools + shared utils.py
+├── tools/              ← 18 tools + shared utils.py
 ├── prompts/            ← Guided workflows (design_crew, debug_crew)
 └── knowledge/          ← ChromaDB indexer + retriever
 ```

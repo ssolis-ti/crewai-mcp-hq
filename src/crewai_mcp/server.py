@@ -46,6 +46,7 @@ def _register_all():
     import crewai_mcp.tools.agent_lifecycle  # noqa
     import crewai_mcp.tools.flow_orchestration  # noqa
     import crewai_mcp.tools.knowledge_memory  # noqa
+    import crewai_mcp.tools.llm_config  # noqa
     import crewai_mcp.tools.observability  # noqa
     import crewai_mcp.tools.project_management  # noqa
     import crewai_mcp.tools.crew_templates  # noqa

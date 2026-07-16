@@ -41,7 +41,9 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+# "." makes `tests.conftest` importable regardless of how pytest is invoked
+# (`pytest` entry point does NOT put the cwd on sys.path; `python -m` does)
+pythonpath = ["src", "."]
 asyncio_mode = "auto"
 # One shared event loop for fixtures AND tests: the MCP ClientSession lives
 # on the session loop; per-test loops would deadlock its awaits.
